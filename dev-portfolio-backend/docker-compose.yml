@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: portfolio-postgres
+    environment:
+      POSTGRES_DB: portfolio_db
+      POSTGRES_USER: portfolio_user
+      POSTGRES_PASSWORD: portfolio_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio_user -d portfolio_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - portfolio-network
+
+  # Spring Boot Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: portfolio-backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: portfolio_db
+      DB_USER: portfolio_user
+      DB_PASSWORD: portfolio_password
+      SERVER_PORT: 8080
+      JWT_SECRET: your-secret-key-change-this-in-production-environment-for-security
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  # React Frontend
+  frontend:
+    image: node:22-alpine
+    container_name: portfolio-frontend
+    working_dir: /app
+    volumes:
+      - ../dev-portfolio:/app
+    environment:
+      VITE_API_URL: http://localhost:8080/api
+    ports:
+      - "5173:5173"
+    command: sh -c "pnpm install && pnpm dev"
+    depends_on:
+      - backend
+    networks:
+      - portfolio-network
+
+volumes:
+  postgres_data:
+
+networks:
+  portfolio-network:
+    driver: bridge
