@@ -1,11 +1,19 @@
 spring:
   application:
     name: portfolio-backend
-  
+
+  # 파일 업로드 크기 제한 (이미지 업로드용)
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   datasource:
-    url: jdbc:h2:mem:portfolio_db;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    # 파일 기반 H2: ./data/portfolio.mv.db 에 저장되어 재시작해도 데이터 유지
+    # AUTO_SERVER=TRUE → DBeaver 등 외부 DB툴에서도 접속 가능
+    url: jdbc:h2:file:./data/portfolio;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
     username: sa
-    password: 
+    password:
     driver-class-name: org.h2.Driver
     hikari:
       maximum-pool-size: 10
@@ -19,7 +27,8 @@ spring:
   
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # update: 스키마 유지하며 변경분만 반영 (create-drop과 달리 데이터 보존)
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect

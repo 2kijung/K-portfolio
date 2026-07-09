@@ -320,4 +320,57 @@ BasicInfoSection (마운트)
   - (권장) PostgreSQL(Docker) 로 전환 — 배포 단계에서 진행
 - 또는 seed 값(`DataInitializer.createSampleProfile`)을 본인 정보로 바꿔두면 재시작해도 그 값으로 시작
 
+## 챕터 7. 파일 업로드 + 경력/사진/현재준비중
+
+### 파일 업로드 (이미지)
+- 백엔드: `FileController`(POST `/api/files/upload`, MultipartFile) → `./uploads/`에 저장 →
+  접근 URL 반환. `WebConfig`가 `/api/uploads/**`로 정적 서빙.
+- 설정: `application.yml`에 `spring.servlet.multipart.max-file-size: 10MB`
+- 프론트: `fileApi.upload(file)` (FormData, Content-Type 지정 안 함 → 브라우저가 boundary 자동 설정)
+- `uploads/`, `data/`는 `.gitignore`에 추가 (로컬 파일이라 커밋 안 함)
+
+### 새 기능 (모두 기존 CRUD 패턴)
+| 기능 | 엔티티 | 화면 |
+|------|--------|------|
+| 경력(Career) | `Career`(회사/직무/기간/업무) | `CareerSection`(타임라인) + 관리자 경력탭 |
+| 프로필 사진 | `Profile.imageUrl` | 업로드 후 BasicInfoSection에 원형 표시 |
+| 현재 준비중 | `Profile.currentStatus` | BasicInfoSection에 배지로 표시 |
+
+### 이미지 표시 관련 팁
+- 업로드 응답은 전체 URL(`http://localhost:8081/api/uploads/xxx.png`) → `profile.imageUrl`에 저장
+- `<img>` 태그는 CORS 제약 없이 다른 포트 이미지도 로드 가능
+- 사진 선택 → 업로드 → **저장 버튼**을 눌러야 프로필에 최종 반영됨
+
+## 챕터 8. 개발 노트(DevNote) — 트러블슈팅 케이스 증빙
+
+포트폴리오에서 "어떻게 설계·구현하고, 어떤 문제를 어떻게 해결했는지"를
+코드와 함께 보여주는 기능. (채용 관점에서 가장 설득력 있는 콘텐츠)
+
+- 엔티티 `DevNote`: title, category, situation(상황), codeBefore, codeAfter, solution
+- API: GET/POST/**PUT**/DELETE (긴 글이라 수정 기능 포함)
+- 홈: `DevNotesSection` — 상황 → Before/After 코드 → 원인&해결 카드
+- 관리자: 개발노트 탭 — 작성/수정(폼에 로드)/삭제
+- 시드: 오늘 실제로 해결한 4건 (CORS / SecurityFilterChain / H2 영구저장 / 모놀리식 설계)
+
+> 이 시드 내용은 **실제로 발생하고 해결한 것**이라 그대로 "증빙"이 됨.
+> Java 17 텍스트 블록(`""" ... """`)으로 코드 스니펫을 깔끔하게 시드.
+
+## 챕터 9. 로그인 보안(JWT) + 기술스택 DB화
+
+### JWT 인증 (조회는 공개, 쓰기/관리는 로그인 필요)
+- `JwtAuthenticationFilter`: `Authorization: Bearer <token>` 검증 → SecurityContext에 인증 세팅
+- `SecurityConfig`: 규칙 적용
+  - 공개: `POST /auth/login`·`/contacts`·`/visitors`, `GET` 포트폴리오 조회, `/uploads/**`, 문서
+  - 인증 필요: 그 외 모든 쓰기(POST/PUT/DELETE) + 관리자 조회(GET /contacts, /visitors/stats)
+- 프론트는 이미 쓰기/관리 호출에 토큰을 보냄 → 로그인 후 정상 동작
+- ⚠️ 재시작 후 **관리자 기능은 로그인(admin/admin) 필요**. 홈 조회는 로그인 없이 됨.
+
+### 기술스택 DB화 (하드코딩 → 관리)
+- `Skill` 엔티티(category/name/level/color) + API + 시드
+- `SkillsSection`을 `/api/skills`에서 받아 카테고리별 렌더로 교체 (하드코딩·가짜 자격증 블록 제거)
+- 관리자 "스킬" 탭에서 추가/삭제 (색상·숙련도 포함)
+
+### 남은 가짜 데이터 (다음 작업)
+- `HeroSection`(첫 화면 문구), `AboutSection`(가짜 통계 5년/30+/50+) → Profile 데이터로 연결 예정
+
 <!-- 다음 챕터부터 여기에 계속 추가됩니다 -->

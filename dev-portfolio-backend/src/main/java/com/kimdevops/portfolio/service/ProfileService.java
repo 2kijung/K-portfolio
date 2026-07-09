@@ -48,6 +48,8 @@ public class ProfileService {
         profile.setEmail(input.getEmail());
         profile.setGithubUrl(input.getGithubUrl());
         profile.setBlogUrl(input.getBlogUrl());
+        profile.setImageUrl(input.getImageUrl());
+        profile.setCurrentStatus(input.getCurrentStatus());
         profile.setUpdatedAt(LocalDateTime.now());
 
         return profileRepository.save(profile);

@@ -5,7 +5,9 @@
 
 import ParticleBackground from "@/components/ParticleBackground";
 import { useTypewriter } from "@/hooks/useTypewriter";
-import { ChevronDown, Github, Linkedin, Mail, Download } from "lucide-react";
+import { ChevronDown, Github, BookOpen, Mail, Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import { profileApi, type ProfileData } from "@/lib/api";
 
 const HERO_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663398554856/hsrSa3YUTQvKpXz9DLCYxj/hero-bg-VUJYCrwNg7p49CEGA7jMJD.webp";
@@ -29,6 +31,13 @@ const techBadges = [
 
 export default function HeroSection() {
   const role = useTypewriter(roles, 80, 2200);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+
+  useEffect(() => {
+    profileApi.get().then((res) => {
+      if (res.success && res.data) setProfile(res.data);
+    });
+  }, []);
 
   const scrollToAbout = () => {
     document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
@@ -79,8 +88,7 @@ export default function HeroSection() {
           className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white mb-4 animate-fadeInUp"
           style={{ fontFamily: "Sora, sans-serif", lineHeight: 1.1 }}
         >
-          Kim{" "}
-          <span className="gradient-text">DevOps</span>
+          {profile?.name || "포트폴리오"}
         </h1>
 
         {/* Typewriter role */}
@@ -94,9 +102,7 @@ export default function HeroSection() {
 
         {/* Description */}
         <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-8 leading-relaxed animate-fadeInUp delay-300">
-          JDK 17 & Spring Boot 기반의 마이크로서비스 아키텍처를 설계하고,
-          Docker 컨테이너화 및 Kubernetes 오케스트레이션으로 실제 프로덕션 환경에
-          배포하는 백엔드 엔지니어입니다.
+          {profile?.introduction || "성장을 즐기는 개발자입니다."}
         </p>
 
         {/* Tech badges */}
@@ -125,30 +131,36 @@ export default function HeroSection() {
           </button>
         </div>
 
-        {/* Social links */}
+        {/* Social links (프로필 데이터가 있는 것만 표시) */}
         <div className="flex items-center justify-center gap-4 animate-fadeInUp delay-600">
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
-          >
-            <Github className="w-5 h-5" />
-          </a>
-          <a
-            href="https://linkedin.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
-          >
-            <Linkedin className="w-5 h-5" />
-          </a>
-          <a
-            href="mailto:kim@devops.kr"
-            className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
-          >
-            <Mail className="w-5 h-5" />
-          </a>
+          {profile?.githubUrl && (
+            <a
+              href={profile.githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <Github className="w-5 h-5" />
+            </a>
+          )}
+          {profile?.blogUrl && (
+            <a
+              href={profile.blogUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <BookOpen className="w-5 h-5" />
+            </a>
+          )}
+          {profile?.email && (
+            <a
+              href={`mailto:${profile.email}`}
+              className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <Mail className="w-5 h-5" />
+            </a>
+          )}
         </div>
       </div>
 

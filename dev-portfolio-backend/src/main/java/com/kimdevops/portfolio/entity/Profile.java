@@ -52,6 +52,12 @@ public class Profile {
     @Column(name = "blog_url")
     private String blogUrl;           // 블로그 주소 (선택)
 
+    @Column(name = "image_url")
+    private String imageUrl;          // 프로필 사진 URL (업로드된 이미지)
+
+    @Column(name = "current_status", columnDefinition = "TEXT")
+    private String currentStatus;     // 현재 준비/진행 중인 것
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -97,6 +103,12 @@ public class Profile {
 
     public String getBlogUrl() { return blogUrl; }
     public void setBlogUrl(String blogUrl) { this.blogUrl = blogUrl; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public String getCurrentStatus() { return currentStatus; }
+    public void setCurrentStatus(String currentStatus) { this.currentStatus = currentStatus; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

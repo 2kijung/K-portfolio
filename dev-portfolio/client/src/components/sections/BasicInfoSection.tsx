@@ -52,6 +52,13 @@ export default function BasicInfoSection() {
         >
           {/* 헤더 */}
           <div className="text-center mb-12">
+            {profile?.imageUrl && (
+              <img
+                src={profile.imageUrl}
+                alt="프로필"
+                className="w-28 h-28 rounded-full object-cover mx-auto mb-5 neon-border"
+              />
+            )}
             <p className="section-label mb-3">Basic Info</p>
             <h2
               className="text-4xl font-extrabold text-white"
@@ -73,9 +80,19 @@ export default function BasicInfoSection() {
 
           {/* 한줄 소개 */}
           {profile?.introduction && (
-            <p className="text-center text-lg text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-center text-lg text-slate-300 mb-6 max-w-2xl mx-auto leading-relaxed">
               “{profile.introduction}”
             </p>
+          )}
+
+          {/* 현재 준비/진행 중 */}
+          {profile?.currentStatus && (
+            <div className="text-center mb-10">
+              <span className="inline-flex items-center gap-2 glass-card px-4 py-2 rounded-full text-sm text-slate-300">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                현재: {profile.currentStatus}
+              </span>
+            </div>
           )}
 
           {/* 정보 카드 그리드 */}

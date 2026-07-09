@@ -8,9 +8,12 @@ import Footer from "@/components/Footer";
 import HeroSection from "@/components/sections/HeroSection";
 import AboutSection from "@/components/sections/AboutSection";
 import BasicInfoSection from "@/components/sections/BasicInfoSection";
+import CareerSection from "@/components/sections/CareerSection";
 import SkillsSection from "@/components/sections/SkillsSection";
 import ProjectsSection from "@/components/sections/ProjectsSection";
+import CertificationsSection from "@/components/sections/CertificationsSection";
 import ArchitectureSection from "@/components/sections/ArchitectureSection";
+import DevNotesSection from "@/components/sections/DevNotesSection";
 import ContactSection from "@/components/sections/ContactSection";
 
 export default function Home() {
@@ -21,9 +24,12 @@ export default function Home() {
         <HeroSection />
         <AboutSection />
         <BasicInfoSection />
+        <CareerSection />
         <SkillsSection />
         <ProjectsSection />
+        <CertificationsSection />
         <ArchitectureSection />
+        <DevNotesSection />
         <ContactSection />
       </main>
       <Footer />

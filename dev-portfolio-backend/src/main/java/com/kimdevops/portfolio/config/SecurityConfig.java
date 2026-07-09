@@ -1,12 +1,16 @@
 package com.kimdevops.portfolio.config;
 
+import com.kimdevops.portfolio.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -15,6 +19,9 @@ import java.util.Arrays;
 
 @Configuration
 public class SecurityConfig {
+
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -34,8 +41,19 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())                    // REST API라 CSRF 불필요
             .headers(headers -> headers.frameOptions(frame -> frame.disable())) // H2 콘솔 iframe 허용
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()                    // 모든 요청 허용 (개발용)
-            );
+                // CORS preflight 허용
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // 공개: 로그인 / 방문자기록 / 문의등록
+                .requestMatchers(HttpMethod.POST, "/auth/**", "/contacts", "/visitors").permitAll()
+                // 공개: 포트폴리오 조회(GET) + 업로드 이미지
+                .requestMatchers(HttpMethod.GET, "/profile", "/careers", "/certifications",
+                        "/dev-notes", "/projects", "/projects/**", "/skills", "/uploads/**").permitAll()
+                // 공개: 문서/모니터링/H2콘솔
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/**", "/h2-console/**").permitAll()
+                // 그 외(추가/수정/삭제, 관리자 조회)는 로그인 필요
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
