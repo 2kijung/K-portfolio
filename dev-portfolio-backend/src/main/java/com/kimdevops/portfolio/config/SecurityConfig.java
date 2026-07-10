@@ -45,6 +45,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // 공개: 로그인 / 방문자기록 / 문의등록
                 .requestMatchers(HttpMethod.POST, "/auth/**", "/contacts", "/visitors").permitAll()
+                // 공개: 헬스체크 (K8s liveness/readiness probe)
+                .requestMatchers(HttpMethod.GET, "/auth/health").permitAll()
                 // 공개: 포트폴리오 조회(GET) + 업로드 이미지
                 .requestMatchers(HttpMethod.GET, "/profile", "/careers", "/certifications",
                         "/dev-notes", "/projects", "/projects/**", "/skills", "/uploads/**").permitAll()

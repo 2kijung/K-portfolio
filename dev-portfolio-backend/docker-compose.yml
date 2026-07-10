@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: portfolio-postgres
@@ -21,20 +20,20 @@ services:
     networks:
       - portfolio-network
 
-  # Spring Boot Backend
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: portfolio-backend
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: "5432"
       DB_NAME: portfolio_db
       DB_USER: portfolio_user
       DB_PASSWORD: portfolio_password
-      SERVER_PORT: 8080
-      JWT_SECRET: your-secret-key-change-this-in-production-environment-for-security
+      SERVER_PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
     ports:
       - "8080:8080"
     depends_on:
@@ -44,22 +43,18 @@ services:
       - portfolio-network
     restart: unless-stopped
 
-  # React Frontend
   frontend:
-    image: node:22-alpine
+    build:
+      context: ../dev-portfolio
+      dockerfile: Dockerfile
     container_name: portfolio-frontend
-    working_dir: /app
-    volumes:
-      - ../dev-portfolio:/app
-    environment:
-      VITE_API_URL: http://localhost:8080/api
     ports:
-      - "5173:5173"
-    command: sh -c "pnpm install && pnpm dev"
+      - "80:80"
     depends_on:
       - backend
     networks:
       - portfolio-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:

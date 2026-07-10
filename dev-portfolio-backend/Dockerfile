@@ -15,8 +15,8 @@ COPY src ./src
 # Build application
 RUN mvn clean package -DskipTests
 
-# Runtime stage
-FROM eclipse-temurin:17-jdk-alpine
+# Runtime stage (amazoncorretto:17-alpine3.21 supports ARM64/amd64)
+FROM amazoncorretto:17-alpine3.21
 
 WORKDIR /app
 
@@ -30,5 +30,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/auth/health || exit 1
 
-# Run application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run application (prod profile activates PostgreSQL datasource)
+ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
