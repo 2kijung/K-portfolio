@@ -6,11 +6,15 @@
 import { useState, useEffect } from "react";
 import { Menu, X, Terminal } from "lucide-react";
 
+// 페이지 스크롤 순서와 동일하게 정렬 (스크롤 하이라이트 정확도 위해)
 const navLinks = [
   { label: "About", href: "#about" },
+  { label: "Career", href: "#career" },
   { label: "Skills", href: "#skills" },
   { label: "Projects", href: "#projects" },
+  { label: "Certificates", href: "#certifications" },
   { label: "Architecture", href: "#architecture" },
+  { label: "Trouble Shooting", href: "#dev-notes" },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -64,7 +68,7 @@ export default function Navbar() {
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             >
               <span className="text-blue-400">&lt;</span>
-              KimDev
+              K.Dev
               <span className="text-blue-400">/&gt;</span>
             </span>
           </div>

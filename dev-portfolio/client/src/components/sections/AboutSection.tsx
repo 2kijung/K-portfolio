@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { useInView } from "@/hooks/useInView";
-import { Code2, Server, Cloud, Award } from "lucide-react";
+import { Code2, Server, Cloud, Award, GraduationCap, Shield, MapPin, Cake } from "lucide-react";
 import {
   profileApi, careerApi, projectApi, certificationApi, skillApi,
   type ProfileData,
@@ -15,11 +15,13 @@ const PLACEHOLDER_IMG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663398554856/hsrSa3YUTQvKpXz9DLCYxj/profile-abstract-4WH4AFT3yksx6QBfnqFHP9.webp";
 
 const highlights = [
-  { icon: "☕", title: "Java / Spring Boot", desc: "JDK 17 기반 Spring Boot 3.x 애플리케이션 설계 및 개발" },
-  { icon: "🗄️", title: "JPA / RDBMS", desc: "엔티티 설계와 JPA로 DB 접근, H2·PostgreSQL 운영" },
-  { icon: "🐳", title: "Docker / K8s", desc: "컨테이너화 및 쿠버네티스 배포 학습·적용" },
-  { icon: "🚀", title: "CI/CD", desc: "GitHub Actions·Jenkins 기반 자동화 배포 파이프라인" },
+  { icon: "🔗", title: "시스템 연계 · 인터페이스", desc: "SGI 보증보험·SAP·카카오톡 등 외부 시스템 연계 및 인터페이스 API 개발" },
+  { icon: "🏗️", title: "레거시 고도화 · 오너십", desc: "구형 시스템 고도화, 2차 프로젝트 단독 수행 경험" },
+  { icon: "🐞", title: "장애 원인 규명", desc: "네트워크·보안·설정 계층을 하나씩 파고들어 근본 원인 특정 (트러블슈팅)" },
+  { icon: "🏦", title: "다양한 도메인", desc: "은행·공기업·대기업 SI 프로젝트 (엄격한 보안·감사 환경 경험)" },
 ];
+
+const interests = ["Spring Boot", "JPA", "React", "MSA 전환", "Docker / K8s", "CI/CD"];
 
 export default function AboutSection() {
   const { ref, inView } = useInView();
@@ -50,6 +52,15 @@ export default function AboutSection() {
     { label: "자격증", value: `${counts.certs}`, icon: Award },
     { label: "기술 스택", value: `${counts.skills}`, icon: Code2 },
   ];
+
+  // 기본 정보 (값이 있는 것만) — 기존 '기본정보' 섹션을 About에 통합
+  const edu = [profile?.university, profile?.major].filter(Boolean).join(" ");
+  const basicFacts = [
+    edu && { icon: GraduationCap, label: "학력", value: `${edu}${profile?.graduationStatus ? ` (${profile.graduationStatus})` : ""}` },
+    profile?.militaryStatus && { icon: Shield, label: "병역", value: profile.militaryStatus },
+    profile?.location && { icon: MapPin, label: "거주지", value: profile.location },
+    profile?.birthDate && { icon: Cake, label: "생년", value: profile.birthDate },
+  ].filter(Boolean) as { icon: any; label: string; value: string }[];
 
   return (
     <section id="about" className="py-24 relative" style={{ background: "#060b18" }}>
@@ -100,9 +111,22 @@ export default function AboutSection() {
               {profile?.introduction || "성장을 즐기는 개발자입니다. 관리자 페이지에서 소개를 작성해 보세요."}
             </p>
             {profile?.currentStatus && (
-              <p className="text-slate-300 leading-relaxed mb-8">
+              <p className="text-slate-300 leading-relaxed mb-6">
                 <span className="text-blue-400 font-semibold">현재</span> — {profile.currentStatus}
               </p>
+            )}
+
+            {/* 기본 정보 요약 (학력·병역·거주지·생년) */}
+            {basicFacts.length > 0 && (
+              <div className="grid grid-cols-2 gap-y-2 gap-x-4 mb-8 p-4 rounded-xl bg-white/3 border border-white/5">
+                {basicFacts.map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex items-center gap-2 text-sm">
+                    <Icon className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span className="text-xs text-slate-500 shrink-0">{label}</span>
+                    <span className="text-slate-300 truncate">{value}</span>
+                  </div>
+                ))}
+              </div>
             )}
 
             {/* Highlight cards */}
@@ -114,6 +138,18 @@ export default function AboutSection() {
                   <div className="text-xs text-slate-500 leading-relaxed">{item.desc}</div>
                 </div>
               ))}
+            </div>
+
+            {/* 관심 & 성장 분야 */}
+            <div className="mt-6">
+              <div className="text-xs font-semibold text-slate-500 mb-2">관심 · 성장 중인 분야</div>
+              <div className="flex flex-wrap gap-2">
+                {interests.map((t) => (
+                  <span key={t} className="text-xs px-3 py-1 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                    {t}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>

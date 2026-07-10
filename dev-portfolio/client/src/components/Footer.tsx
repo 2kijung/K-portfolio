@@ -2,7 +2,7 @@
    DESIGN: Midnight Architecture — Minimal footer
    ========================================================== */
 
-import { Terminal, Github, Linkedin, Mail } from "lucide-react";
+import { Terminal, Github, BookOpen, Mail } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -19,23 +19,23 @@ export default function Footer() {
             </div>
             <span className="font-mono text-sm text-slate-400">
               <span className="text-blue-400">&lt;</span>
-              KimDev
+              K.Dev
               <span className="text-blue-400">/&gt;</span>
             </span>
           </div>
 
           {/* Copyright */}
           <p className="text-xs font-mono text-slate-600">
-            © 2024 Kim DevOps. Built with{" "}
-            <span className="text-blue-400">React + TypeScript</span>
+            © 2026 이기정 (K.Dev). Built with{" "}
+            <span className="text-blue-400">React + Spring Boot</span>
           </p>
 
           {/* Social */}
           <div className="flex items-center gap-3">
             {[
-              { icon: <Github className="w-4 h-4" />, href: "https://github.com" },
-              { icon: <Linkedin className="w-4 h-4" />, href: "https://linkedin.com" },
-              { icon: <Mail className="w-4 h-4" />, href: "mailto:kim@devops.kr" },
+              { icon: <Github className="w-4 h-4" />, href: "https://github.com/2kijung" },
+              { icon: <BookOpen className="w-4 h-4" />, href: "https://velog.io/@dlrlwjd1313/posts" },
+              { icon: <Mail className="w-4 h-4" />, href: "mailto:dlrlwjd1313@naver.com" },
             ].map((s, i) => (
               <a
                 key={i}

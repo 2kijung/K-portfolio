@@ -46,7 +46,7 @@ export default function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-32"
       style={{ background: "#060b18" }}
     >
       {/* Background image with overlay */}
@@ -115,7 +115,7 @@ export default function HeroSection() {
         </div>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 animate-fadeInUp delay-500">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 animate-fadeInUp delay-500">
           <button
             onClick={() => document.getElementById("projects")?.scrollIntoView({ behavior: "smooth" })}
             className="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5"
@@ -167,7 +167,7 @@ export default function HeroSection() {
       {/* Scroll indicator */}
       <button
         onClick={scrollToAbout}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-slate-500 hover:text-slate-300 transition-colors animate-float"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-2 text-slate-500 hover:text-slate-300 transition-colors animate-float"
       >
         <span className="text-xs font-mono tracking-widest">SCROLL</span>
         <ChevronDown className="w-5 h-5" />
