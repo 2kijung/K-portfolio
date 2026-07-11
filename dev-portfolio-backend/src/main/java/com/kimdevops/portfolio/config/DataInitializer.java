@@ -339,6 +339,7 @@ public class DataInitializer implements CommandLineRunner {
         profile.setIntroduction("비즈니스 요구사항을 안정적인 서비스로 구현하는 것을 좋아하는 Java 백엔드 개발자입니다. 은행·공기업·대기업 SI 프로젝트에서 Spring Framework·MyBatis 기반의 인터페이스/API·배치·연계 개발과 레거시 시스템 고도화를 수행했습니다. 최신 스택(Spring Boot·JPA·React)은 이 포트폴리오를 직접 설계·구현하며 학습하고 있습니다.");
         profile.setEmail("dlrlwjd1313@naver.com");
         profile.setGithubUrl("https://github.com/2kijung");
+        profile.setTistoryUrl("https://dlrlwjd1313.tistory.com");
         profile.setBlogUrl("https://velog.io/@dlrlwjd1313/posts");
         profile.setImageUrl("");         // 사진은 관리자에서 업로드
         profile.setCurrentStatus("KOLON에서 SGI보증보험 연계와 AI 기능 연계·개발을 진행하고 있습니다.");

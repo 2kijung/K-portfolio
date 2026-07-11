@@ -9,7 +9,7 @@ import { useInView } from "@/hooks/useInView";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Container, GitBranch, Server, Shield, Globe, AlertTriangle,
-  CheckCircle2, ChevronRight, X, Layers, Network, Cpu
+  CheckCircle2, ChevronRight, Layers, Network, Cpu, ChevronDown, ChevronUp
 } from "lucide-react";
 
 type Category = "전체" | "Docker" | "Jenkins" | "Kubernetes" | "보안" | "네트워크";
@@ -220,6 +220,18 @@ const ITEMS: DevOpsItem[] = [
     solution: "Helm으로 kube-prometheus-stack 배포. Prometheus가 K8s 메트릭(pod CPU/메모리, 노드 상태) 수집, Grafana 대시보드로 시각화. kubectl port-forward로 Grafana(3000), Prometheus(9091) 로컬 접근. 기본 계정: admin/grafana1234.",
     tags: ["Prometheus", "Grafana", "Helm", "Monitoring", "kube-prometheus-stack"],
   },
+  {
+    id: 18,
+    category: "Kubernetes",
+    title: "포트포워드 자동 재연결 데몬",
+    summary: "Jenkins 배포 시 포트포워드 끊김 → macOS LaunchAgent로 자동 복구",
+    icon: <Server className="w-5 h-5" />,
+    problem: "Jenkins가 새 이미지를 K8s에 배포하면 pod가 교체되면서 kubectl port-forward 연결이 끊김. 수동으로 포트포워드를 재시작해야 사이트가 다시 접속됨.",
+    before: "# Jenkins Summary 단계\nnohup kubectl port-forward ... &\ndisown $!\n# → Jenkins 종료 시 자식 프로세스 함께 종료\n# → 포트포워드 재시작 불안정",
+    after: "# scripts/port-forward-daemon.sh\nforward_frontend() {\n  while true; do\n    kubectl port-forward ... svc/portfolio-frontend 8888:80\n    sleep 5  # 끊기면 5초 후 자동 재연결\n  done\n}\n# LaunchAgent KeepAlive: true → 항상 실행 유지",
+    solution: "while true 루프로 포트포워드가 끊기면 5초 후 자동 재연결하는 데몬 스크립트 작성. macOS LaunchAgent(KeepAlive: true)로 등록해 Mac 부팅 시 자동 시작. Jenkins는 배포 후 localhost:8888 HTTP 200 응답을 최대 60초간 폴링해 서비스 복구를 검증 후 성공/실패 판정.",
+    tags: ["LaunchAgent", "port-forward", "데몬", "자동재연결", "Jenkins"],
+  },
 ];
 
 const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
@@ -255,9 +267,13 @@ export default function DevOpsSection() {
   const { ref, inView } = useInView();
   const [selected, setSelected] = useState<DevOpsItem | null>(null);
   const [activeCategory, setActiveCategory] = useState<Category>("전체");
+  const [expanded, setExpanded] = useState(false);
+  const INITIAL_COUNT = 6;
 
   const categories: Category[] = ["전체", "Docker", "Jenkins", "Kubernetes", "보안", "네트워크"];
   const filtered = activeCategory === "전체" ? ITEMS : ITEMS.filter(i => i.category === activeCategory);
+  const visible = expanded ? filtered : filtered.slice(0, INITIAL_COUNT);
+  const hasMore = filtered.length > INITIAL_COUNT;
 
   return (
     <section id="devops" className="py-24 relative" style={{ background: "#070d1e" }}>
@@ -312,7 +328,7 @@ export default function DevOpsSection() {
 
           {/* 카드 그리드 */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((item, idx) => (
+            {visible.map((item, idx) => (
               <button
                 key={item.id}
                 onClick={() => setSelected(item)}
@@ -355,7 +371,23 @@ export default function DevOpsSection() {
             ))}
           </div>
 
-          <p className="text-center mt-8 text-xs text-slate-600">
+          {/* 펼치기/접기 */}
+          {hasMore && (
+            <div className="text-center mt-6">
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-slate-700/50 bg-slate-800/30 text-slate-400 hover:border-blue-500/40 hover:text-blue-300 text-sm font-medium transition-all"
+              >
+                {expanded ? (
+                  <><ChevronUp className="w-4 h-4" /> 접기</>
+                ) : (
+                  <><ChevronDown className="w-4 h-4" /> {filtered.length - INITIAL_COUNT}개 더 보기</>
+                )}
+              </button>
+            </div>
+          )}
+
+          <p className="text-center mt-6 text-xs text-slate-600">
             카드를 클릭하면 상세 내용을 확인할 수 있습니다
           </p>
         </div>
