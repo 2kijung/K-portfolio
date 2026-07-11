@@ -1,0 +1,159 @@
+// Jenkinsfile.local - Docker Hub 없이 로컬 Minikube에 직접 배포
+// Jenkins에서 Build Now 클릭만 하면 바로 동작
+
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_TAG      = "${env.BUILD_NUMBER}"
+        K8S_NAMESPACE  = "portfolio"
+        PROJECT_ROOT   = "/Users/k/IdeaProjects/K-portfolio"
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo "=== Build #${env.BUILD_NUMBER} 시작 ==="
+                sh 'java -version 2>&1 | head -1'
+                sh 'mvn -version | head -1'
+                sh 'docker version --format "Docker {{.Server.Version}}" 2>/dev/null || echo "Docker 접근 확인 필요"'
+                sh 'kubectl version --client --short 2>/dev/null | head -1'
+            }
+        }
+
+        stage('Build Backend JAR') {
+            steps {
+                dir("${PROJECT_ROOT}/dev-portfolio-backend") {
+                    sh 'mvn clean package -DskipTests -q'
+                    sh 'ls -lh target/*.jar'
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                dir("${PROJECT_ROOT}/dev-portfolio") {
+                    sh 'pnpm install --frozen-lockfile'
+                    sh 'pnpm exec vite build'
+                    sh 'ls -lh dist/public/'
+                }
+            }
+        }
+
+        stage('Docker Build (Local)') {
+            parallel {
+                stage('Backend Image') {
+                    steps {
+                        dir("${PROJECT_ROOT}/dev-portfolio-backend") {
+                            sh "DOCKER_BUILDKIT=1 docker build -t portfolio-backend:${IMAGE_TAG} -t portfolio-backend:latest ."
+                            sh "docker image ls portfolio-backend:${IMAGE_TAG}"
+                        }
+                    }
+                }
+                stage('Frontend Image') {
+                    steps {
+                        dir("${PROJECT_ROOT}/dev-portfolio") {
+                            sh "DOCKER_BUILDKIT=1 docker build -t portfolio-frontend:${IMAGE_TAG} -t portfolio-frontend:latest ."
+                            sh "docker image ls portfolio-frontend:${IMAGE_TAG}"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Load to Minikube') {
+            parallel {
+                stage('Backend to Minikube') {
+                    steps {
+                        sh "minikube image load portfolio-backend:${IMAGE_TAG}"
+                        sh "minikube image load portfolio-backend:latest"
+                    }
+                }
+                stage('Frontend to Minikube') {
+                    steps {
+                        sh "minikube image load portfolio-frontend:${IMAGE_TAG}"
+                        sh "minikube image load portfolio-frontend:latest"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Minikube') {
+            steps {
+                dir("${PROJECT_ROOT}/k8s") {
+                    // 기본 리소스 적용
+                    sh 'kubectl apply -f namespace.yaml'
+                    sh 'kubectl apply -f configmap.yaml'
+                    sh 'kubectl apply -f secret.yaml'
+                    sh 'kubectl apply -f postgres.yaml'
+
+                    // 이미지 태그 교체 후 배포
+                    sh """
+                        sed 's|YOUR_DOCKERHUB_USERNAME/portfolio-backend:IMAGE_TAG|portfolio-backend:${IMAGE_TAG}|g' backend.yaml \
+                        | sed 's|imagePullPolicy: Always|imagePullPolicy: IfNotPresent|g' \
+                        | kubectl apply -n ${K8S_NAMESPACE} -f -
+                    """
+                    sh """
+                        sed 's|YOUR_DOCKERHUB_USERNAME/portfolio-frontend:IMAGE_TAG|portfolio-frontend:${IMAGE_TAG}|g' frontend.yaml \
+                        | sed 's|imagePullPolicy: Always|imagePullPolicy: IfNotPresent|g' \
+                        | kubectl apply -n ${K8S_NAMESPACE} -f -
+                    """
+                    sh 'kubectl apply -f ingress.yaml'
+                }
+            }
+        }
+
+        stage('Rollout & Health Check') {
+            steps {
+                sh """
+                    echo "=== Rollout 대기 ==="
+                    kubectl rollout status deployment/portfolio-backend  -n ${K8S_NAMESPACE} --timeout=180s
+                    kubectl rollout status deployment/portfolio-frontend -n ${K8S_NAMESPACE} --timeout=60s
+
+                    echo "=== 헬스체크 ==="
+                    kubectl port-forward -n ${K8S_NAMESPACE} svc/portfolio-backend 19099:8080 &
+                    PF_PID=\$!
+                    sleep 5
+
+                    STATUS=\$(curl -sf --retry 3 --retry-delay 2 http://localhost:19099/api/auth/health | python3 -c "import sys,json; print(json.load(sys.stdin)['data'])" 2>/dev/null || echo "FAILED")
+                    kill \$PF_PID 2>/dev/null || true
+
+                    echo "헬스체크 결과: \$STATUS"
+                    [ "\$STATUS" = "Backend is running" ] && echo "SUCCESS" || (echo "FAILED" && exit 1)
+                """
+            }
+        }
+
+        stage('Summary') {
+            steps {
+                sh """
+                    echo "=== 배포 완료 - Build #${IMAGE_TAG} ==="
+                    kubectl get pods -n ${K8S_NAMESPACE}
+                    echo ""
+                    echo "접근 방법:"
+                    echo "  kubectl port-forward -n portfolio svc/portfolio-frontend 8888:80"
+                    echo "  브라우저: http://localhost:8888"
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Build #${env.BUILD_NUMBER} 성공 - Minikube 배포 완료"
+        }
+        failure {
+            echo "Build #${env.BUILD_NUMBER} 실패 - 로그 확인 필요"
+            sh 'kubectl get events -n portfolio --sort-by=".lastTimestamp" | tail -20 || true'
+        }
+        always {
+            sh 'docker image prune -f --filter "until=24h" || true'
+        }
+    }
+}

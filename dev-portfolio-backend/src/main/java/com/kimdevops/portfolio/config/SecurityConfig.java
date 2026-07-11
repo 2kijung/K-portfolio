@@ -51,7 +51,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/profile", "/careers", "/certifications",
                         "/dev-notes", "/projects", "/projects/**", "/skills", "/uploads/**").permitAll()
                 // 공개: 문서/모니터링/H2콘솔
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/**", "/h2-console/**").permitAll()
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
+                        "/actuator/**", "/h2-console/**", "/webjars/**").permitAll()
                 // 그 외(추가/수정/삭제, 관리자 조회)는 로그인 필요
                 .anyRequest().authenticated()
             )
