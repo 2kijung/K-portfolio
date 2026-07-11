@@ -99,6 +99,7 @@ pipeline {
                     sh 'kubectl apply -f configmap.yaml'
                     sh 'kubectl apply -f secret.yaml'
                     sh 'kubectl apply -f postgres.yaml'
+                    sh 'kubectl apply -f uploads-pvc.yaml'
 
                     // 이미지 태그 교체 후 배포
                     sh """
@@ -143,12 +144,15 @@ pipeline {
                     echo "=== 배포 완료 - Build #${IMAGE_TAG} ==="
                     kubectl get pods -n ${K8S_NAMESPACE}
                 """
-                // 기존 포트포워드 종료 후 재시작
+                // 기존 포트포워드 종료 후 재시작 (nohup으로 Jenkins 종료 후에도 유지)
                 sh """
-                    kill \$(lsof -ti:8888,8889,3000,9091 2>/dev/null) 2>/dev/null || true
+                    kill \$(lsof -ti:8888,8889 2>/dev/null) 2>/dev/null || true
                     sleep 1
-                    kubectl port-forward --address 0.0.0.0 -n ${K8S_NAMESPACE} svc/portfolio-frontend 8888:80   > /dev/null 2>&1 &
-                    kubectl port-forward --address 0.0.0.0 -n ${K8S_NAMESPACE} svc/portfolio-backend  8889:8080 > /dev/null 2>&1 &
+                    nohup kubectl port-forward --address 0.0.0.0 -n ${K8S_NAMESPACE} svc/portfolio-frontend 8888:80   > /tmp/pf-frontend.log 2>&1 &
+                    disown \$!
+                    nohup kubectl port-forward --address 0.0.0.0 -n ${K8S_NAMESPACE} svc/portfolio-backend  8889:8080 > /tmp/pf-backend.log 2>&1 &
+                    disown \$!
+                    sleep 2
                     echo "포트포워드 시작 완료"
                     echo "  http://localhost:8888"
                     echo "  http://k-devops.duckdns.org"
