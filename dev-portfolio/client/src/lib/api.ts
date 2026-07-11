@@ -55,6 +55,7 @@ export interface ProfileData {
   introduction?: string;
   email?: string;
   githubUrl?: string;
+  tistoryUrl?: string;
   blogUrl?: string;
   imageUrl?: string;
   currentStatus?: string;

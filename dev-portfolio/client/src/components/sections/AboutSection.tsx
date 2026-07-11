@@ -69,14 +69,14 @@ export default function AboutSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div
           ref={ref}
-          className={`grid lg:grid-cols-2 gap-16 items-center transition-all duration-700 ${
+          className={`grid lg:grid-cols-2 gap-16 items-start transition-all duration-700 ${
             inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
         >
           {/* Left: Profile visual */}
           <div className="relative">
             <div className="relative w-full max-w-sm mx-auto lg:mx-0">
-              <div className="aspect-square rounded-2xl overflow-hidden neon-border">
+              <div className="aspect-[3/4] rounded-2xl overflow-hidden neon-border">
                 <img
                   src={profile?.imageUrl || PLACEHOLDER_IMG}
                   alt="Developer Profile"

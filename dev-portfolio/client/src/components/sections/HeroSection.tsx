@@ -5,7 +5,7 @@
 
 import ParticleBackground from "@/components/ParticleBackground";
 import { useTypewriter } from "@/hooks/useTypewriter";
-import { ChevronDown, Github, BookOpen, Mail, Download } from "lucide-react";
+import { ChevronDown, Github, BookOpen, Mail, Download, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { profileApi, type ProfileData } from "@/lib/api";
 
@@ -143,12 +143,24 @@ export default function HeroSection() {
               <Github className="w-5 h-5" />
             </a>
           )}
+          {profile?.tistoryUrl && (
+            <a
+              href={profile.tistoryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
+              title="Tistory"
+            >
+              <span className="text-xs font-bold">T</span>
+            </a>
+          )}
           {profile?.blogUrl && (
             <a
               href={profile.blogUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
+              title="Velog"
             >
               <BookOpen className="w-5 h-5" />
             </a>

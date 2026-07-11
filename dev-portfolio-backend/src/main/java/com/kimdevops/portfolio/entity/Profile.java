@@ -52,6 +52,9 @@ public class Profile {
     @Column(name = "blog_url")
     private String blogUrl;           // 블로그 주소 (선택)
 
+    @Column(name = "tistory_url")
+    private String tistoryUrl;        // 티스토리 블로그 주소
+
     @Column(name = "image_url")
     private String imageUrl;          // 프로필 사진 URL (업로드된 이미지)
 
@@ -103,6 +106,9 @@ public class Profile {
 
     public String getBlogUrl() { return blogUrl; }
     public void setBlogUrl(String blogUrl) { this.blogUrl = blogUrl; }
+
+    public String getTistoryUrl() { return tistoryUrl; }
+    public void setTistoryUrl(String tistoryUrl) { this.tistoryUrl = tistoryUrl; }
 
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }

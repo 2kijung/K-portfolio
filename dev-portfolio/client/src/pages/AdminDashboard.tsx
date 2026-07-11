@@ -258,7 +258,8 @@ export default function AdminDashboard() {
     { label: '병역', key: 'militaryStatus' },
     { label: '이메일', key: 'email' },
     { label: 'GitHub 주소', key: 'githubUrl' },
-    { label: 'Blog 주소', key: 'blogUrl' },
+    { label: 'Tistory 주소 (주요 블로그)', key: 'tistoryUrl' },
+    { label: 'Velog 주소', key: 'blogUrl' },
   ];
 
   return (
@@ -272,7 +273,7 @@ export default function AdminDashboard() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setLocation('/')}>
-              홈으로
+              Home
             </Button>
             <Button variant="destructive" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
