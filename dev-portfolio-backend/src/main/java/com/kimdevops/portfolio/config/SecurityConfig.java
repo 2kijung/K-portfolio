@@ -50,9 +50,9 @@ public class SecurityConfig {
                 // 공개: 포트폴리오 조회(GET) + 업로드 이미지
                 .requestMatchers(HttpMethod.GET, "/profile", "/careers", "/certifications",
                         "/dev-notes", "/projects", "/projects/**", "/skills", "/uploads/**").permitAll()
-                // 공개: 문서/모니터링/H2콘솔
+                // 공개: 문서/모니터링 (actuator는 health/info만 허용, h2-console은 dev only)
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
-                        "/actuator/**", "/h2-console/**", "/webjars/**").permitAll()
+                        "/actuator/health", "/actuator/info", "/webjars/**").permitAll()
                 // 그 외(추가/수정/삭제, 관리자 조회)는 로그인 필요
                 .anyRequest().authenticated()
             )

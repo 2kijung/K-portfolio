@@ -13,6 +13,7 @@ import ProjectsSection from "@/components/sections/ProjectsSection";
 import CertificationsSection from "@/components/sections/CertificationsSection";
 import ArchitectureSection from "@/components/sections/ArchitectureSection";
 import DevNotesSection from "@/components/sections/DevNotesSection";
+import DevOpsSection from "@/components/sections/DevOpsSection";
 import ContactSection from "@/components/sections/ContactSection";
 
 export default function Home() {
@@ -27,6 +28,7 @@ export default function Home() {
         <ProjectsSection />
         <CertificationsSection />
         <ArchitectureSection />
+        <DevOpsSection />
         <DevNotesSection />
         <ContactSection />
       </main>

@@ -39,11 +39,8 @@ public class FileController {
 
             Files.copy(file.getInputStream(), uploadDir.resolve(filename));
 
-            // 접근 가능한 전체 URL 생성 (예: http://localhost:8081/api/uploads/xxxx.png)
-            String url = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/uploads/")
-                    .path(filename)
-                    .toUriString();
+            // 상대경로 반환 → 어떤 도메인에서도 동작 (/api/uploads/파일명)
+            String url = "/api/uploads/" + filename;
 
             return ResponseEntity.ok(ApiResponse.success(url));
         } catch (Exception e) {

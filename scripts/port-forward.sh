@@ -17,10 +17,10 @@ case "$ACTION" in
     kill $(lsof -ti:$FRONTEND_PORT,$BACKEND_PORT,$GRAFANA_PORT,$PROMETHEUS_PORT 2>/dev/null) 2>/dev/null || true
     sleep 1
 
-    kubectl port-forward -n portfolio   svc/portfolio-frontend                    $FRONTEND_PORT:80   > /dev/null 2>&1 &
-    kubectl port-forward -n portfolio   svc/portfolio-backend                     $BACKEND_PORT:8080  > /dev/null 2>&1 &
-    kubectl port-forward -n monitoring  svc/kube-prometheus-stack-grafana         $GRAFANA_PORT:80    > /dev/null 2>&1 &
-    kubectl port-forward -n monitoring  svc/kube-prometheus-stack-prometheus      $PROMETHEUS_PORT:9090 > /dev/null 2>&1 &
+    kubectl port-forward --address 0.0.0.0 -n portfolio   svc/portfolio-frontend                    $FRONTEND_PORT:80   > /dev/null 2>&1 &
+    kubectl port-forward --address 0.0.0.0 -n portfolio   svc/portfolio-backend                     $BACKEND_PORT:8080  > /dev/null 2>&1 &
+    kubectl port-forward --address 0.0.0.0 -n monitoring  svc/kube-prometheus-stack-grafana         $GRAFANA_PORT:80    > /dev/null 2>&1 &
+    kubectl port-forward --address 0.0.0.0 -n monitoring  svc/kube-prometheus-stack-prometheus      $PROMETHEUS_PORT:9090 > /dev/null 2>&1 &
     sleep 2
 
     echo ""

@@ -1,0 +1,396 @@
+/* ==========================================================
+   DevOps 인프라 구축 기록 섹션
+   전체 파이프라인: Docker → Jenkins → Kubernetes → 네트워크
+   카드 클릭 → 모달로 상세 내용 확인
+   ========================================================== */
+
+import { useState } from "react";
+import { useInView } from "@/hooks/useInView";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Container, GitBranch, Server, Shield, Globe, AlertTriangle,
+  CheckCircle2, ChevronRight, X, Layers, Network, Cpu
+} from "lucide-react";
+
+type Category = "전체" | "Docker" | "Jenkins" | "Kubernetes" | "보안" | "네트워크";
+
+interface DevOpsItem {
+  id: number;
+  category: Category;
+  title: string;
+  summary: string;
+  icon: React.ReactNode;
+  problem?: string;
+  before?: string;
+  after?: string;
+  solution: string;
+  tags: string[];
+}
+
+const ITEMS: DevOpsItem[] = [
+  {
+    id: 1,
+    category: "Docker",
+    title: "멀티스테이지 Docker 빌드",
+    summary: "프론트(Node→Nginx)·백엔드(Maven→Corretto) 이미지 최적화",
+    icon: <Container className="w-5 h-5" />,
+    problem: "개발 의존성까지 포함된 이미지는 수백 MB — 배포 이미지는 런타임만 필요",
+    before: "FROM node:22-alpine\nCOPY . .\nRUN pnpm install && pnpm build\n# 빌드 도구가 그대로 최종 이미지에 포함",
+    after: "# Stage 1: 빌드\nFROM node:22-alpine AS builder\nRUN pnpm install && pnpm build\n\n# Stage 2: 서빙\nFROM nginx:1.27-alpine\nCOPY --from=builder /app/dist /usr/share/nginx/html",
+    solution: "멀티스테이지 빌드로 최종 이미지에 빌드 도구 제거. 프론트엔드는 Nginx Alpine(~25MB), 백엔드는 Corretto Alpine으로 경량화. VITE_API_URL=/api 빌드 시 주입해 nginx가 /api/ 프록시를 처리하도록 설정.",
+    tags: ["Docker", "Multi-stage", "Nginx", "Alpine"],
+  },
+  {
+    id: 2,
+    category: "Docker",
+    title: "ARM64 이미지 호환성 오류",
+    summary: "Apple Silicon(M-series)에서 eclipse-temurin 이미지 실행 불가",
+    icon: <Cpu className="w-5 h-5" />,
+    problem: "docker build 시 'no matching manifest for linux/arm64/v8' 에러 발생. Apple Silicon Mac에서 eclipse-temurin:17-jdk-alpine 이미지에 ARM64 지원이 없음.",
+    before: "FROM eclipse-temurin:17-jdk-alpine\n# → linux/arm64 manifest 없음 → 빌드 실패",
+    after: "FROM amazoncorretto:17-alpine3.21\n# → ARM64/AMD64 멀티아키텍처 지원",
+    solution: "amazoncorretto:17-alpine3.21 이미지로 교체. Amazon Corretto는 ARM64(Apple Silicon) 및 AMD64 멀티아키텍처를 공식 지원. DOCKER_BUILDKIT=1 활성화 및 docker-buildx 설치로 크로스 플랫폼 빌드 환경 구성.",
+    tags: ["ARM64", "Apple Silicon", "Corretto", "BuildKit"],
+  },
+  {
+    id: 3,
+    category: "Docker",
+    title: "VITE_API_URL 하드코딩 → 외부 접속 실패",
+    summary: "빌드된 프론트엔드가 외부에서 localhost:8080 호출",
+    icon: <Container className="w-5 h-5" />,
+    problem: "핸드폰·외부에서 포트폴리오 접속 후 로그인 시도 시 API 호출 실패. 브라우저가 사용자 자신의 PC의 localhost:8080으로 요청을 보내는 문제.",
+    before: "// App.tsx\nexport const API_BASE_URL =\n  import.meta.env.VITE_API_URL\n  || 'http://localhost:8080/api'; // 하드코딩",
+    after: "# Dockerfile 빌드 시 환경변수 주입\nRUN VITE_API_URL=/api pnpm run build\n# 상대경로 사용 → nginx가 /api/ 프록시 처리",
+    solution: "VITE는 빌드 타임에 환경변수를 번들에 포함. VITE_API_URL=/api로 설정해 상대경로를 사용하면 nginx의 location /api/ 프록시 규칙이 백엔드로 트래픽을 전달. 도메인이 바뀌어도 동작.",
+    tags: ["Vite", "환경변수", "nginx proxy", "CORS"],
+  },
+  {
+    id: 4,
+    category: "Jenkins",
+    title: "호스트 네이티브 Jenkins 구성",
+    summary: "Docker-in-Docker 소켓 문제 → brew install jenkins-lts로 전환",
+    icon: <GitBranch className="w-5 h-5" />,
+    problem: "Docker 컨테이너 안에서 Jenkins를 실행하면 Minikube/Docker 소켓에 접근이 안됨. Colima 소켓을 볼륨 마운트하는 방법도 보안 정책으로 차단. Jenkins 포트 8081은 IntelliJ 로컬 Spring Boot와 충돌.",
+    before: "# docker-compose.yml (실패)\nservices:\n  jenkins:\n    image: jenkins/jenkins:lts\n    volumes:\n      - /var/run/docker.sock:/var/run/docker.sock\n    # → Colima 소켓 볼륨 마운트 불가",
+    after: "# 호스트에서 직접 실행\nbrew install jenkins-lts\nnohup java -jar jenkins.war \\\n  --httpPort=9090 \\\n  -DJENKINS_HOME=~/.jenkins-portfolio &",
+    solution: "호스트 네이티브 Jenkins로 전환. 호스트의 java, mvn, pnpm, kubectl, docker 명령어를 그대로 사용 가능. 포트를 9090으로 변경(8081 충돌 해결). Jenkinsfile.local 작성으로 Docker Hub 없이 로컬 Minikube에 직접 이미지 로드·배포 성공.",
+    tags: ["Jenkins", "Pipeline", "brew", "Jenkinsfile"],
+  },
+  {
+    id: 5,
+    category: "Jenkins",
+    title: "로컬 CI/CD 파이프라인 (Jenkinsfile.local)",
+    summary: "Docker Hub 없이 Minikube에 직접 빌드→배포 자동화",
+    icon: <GitBranch className="w-5 h-5" />,
+    solution: "Jenkinsfile.local: Checkout → Build Backend JAR → Build Frontend → Docker Build(병렬) → minikube image load(병렬) → kubectl apply → Rollout 대기 → Health Check 7단계 파이프라인. 빌드 성공 시 ~67초 소요. minikube image load로 Docker Hub push 없이 클러스터에 이미지 주입.",
+    tags: ["CI/CD", "Pipeline", "minikube image load", "Parallel"],
+  },
+  {
+    id: 6,
+    category: "Kubernetes",
+    title: "K8s 전체 인프라 구성",
+    summary: "Namespace~HPA까지 프로덕션 수준 K8s 매니페스트 작성",
+    icon: <Layers className="w-5 h-5" />,
+    solution: `구성 파일:\n• namespace.yaml — portfolio 네임스페이스 격리\n• configmap.yaml — DB 호스트/포트/이름 환경변수\n• secret.yaml — DB 인증정보·JWT Secret (base64)\n• postgres.yaml — StatefulSet + PVC(2Gi) + ClusterIP\n• backend.yaml — Deployment(2 replicas) + NodePort + HPA(2~5, CPU 70%)\n• frontend.yaml — Deployment(2 replicas) + NodePort\n• ingress.yaml — nginx ingress controller\n• network-policy.yaml — postgres는 backend만 접근 허용\n• pdb.yaml — minAvailable:1 (롤링 배포 중 가용성 보장)\n• resource-quota.yaml — pods:20, CPU:2, Memory:4Gi + LimitRange`,
+    tags: ["K8s", "HPA", "StatefulSet", "NetworkPolicy", "PDB"],
+  },
+  {
+    id: 7,
+    category: "Kubernetes",
+    title: "Spring Security → K8s Probe 403 오류",
+    summary: "liveness/readiness probe가 /auth/health에서 403 반환",
+    icon: <Server className="w-5 h-5" />,
+    problem: "K8s가 백엔드 pod 상태 확인을 위해 GET /api/auth/health 호출 시 Spring Security가 401/403 반환 → pod가 Unhealthy 판정되어 재시작 무한 반복.",
+    before: "# k8s/backend.yaml\nlivenessProbe:\n  httpGet:\n    path: /api/auth/health  # → 403 반환\n\n# SecurityConfig — 헬스체크 엔드포인트 없음",
+    after: "// SecurityConfig.java\n.requestMatchers(\n  HttpMethod.GET, \"/auth/health\"\n).permitAll()  // probe 통과",
+    solution: "Spring Security permitAll에 GET /auth/health 추가. K8s probe는 인증 헤더 없이 HTTP GET만 보내므로 해당 엔드포인트는 반드시 공개 접근 허용 필요.",
+    tags: ["Spring Security", "K8s Probe", "liveness", "readiness"],
+  },
+  {
+    id: 8,
+    category: "Kubernetes",
+    title: "imagePullPolicy 캐시 이슈",
+    summary: "새 이미지 빌드해도 K8s가 이전 이미지 계속 사용",
+    icon: <Server className="w-5 h-5" />,
+    problem: "Jenkins 재빌드 후 minikube image load를 했는데도 kubectl rollout restart 후 이전 버전이 계속 실행됨.",
+    before: "image: portfolio-backend:latest\nimagePullPolicy: IfNotPresent\n# latest 태그 + IfNotPresent\n# → 캐시 이미지 사용, 새 이미지 무시",
+    after: "# Jenkinsfile.local에서 태그 동적 생성\nIMAGE_TAG = \"${BUILD_NUMBER}\"\nimage: portfolio-backend:${BUILD_NUMBER}\n# 태그가 바뀌면 새 이미지로 인식",
+    solution: "latest 태그 + IfNotPresent 조합은 캐시를 사용. 빌드 번호를 태그로 사용하면 K8s가 새 이미지로 인식해 정상 교체. 로컬 개발 시 minikube image load 후 이미지 태그도 함께 변경 필요.",
+    tags: ["imagePullPolicy", "minikube", "태그 전략"],
+  },
+  {
+    id: 9,
+    category: "Kubernetes",
+    title: "Minikube Docker Desktop 메모리 한도",
+    summary: "6144MB 요청 → Docker Desktop 5910MB 한도 초과 오류",
+    icon: <Server className="w-5 h-5" />,
+    problem: "Colima에서 Docker Desktop으로 전환 후 minikube start --memory=6144 실행 시 'Docker Desktop has only 5910MB memory but you specified 6144MB' 에러.",
+    before: "minikube start --driver=docker --memory=6144\n# → MK_USAGE 에러",
+    after: "minikube start --driver=docker \\\n  --cpus=4 --memory=5500\n# Docker Desktop 할당량 이내",
+    solution: "Docker Desktop Resources 설정에서 최대 메모리 확인 후 그 이하로 설정. 5500MB로 조정하여 정상 기동. start-all.sh에도 반영.",
+    tags: ["Minikube", "Docker Desktop", "메모리"],
+  },
+  {
+    id: 10,
+    category: "보안",
+    title: "Actuator 전체 공개 → 정보 노출",
+    summary: "/actuator/** permitAll → 메모리·빈·환경변수 외부 노출",
+    icon: <Shield className="w-5 h-5" />,
+    problem: "Spring Boot Actuator의 /actuator/env, /actuator/beans, /actuator/heapdump 등이 인증 없이 외부에서 접근 가능. DB 접속 정보, 환경변수, 클래스 목록 노출 위험.",
+    before: "# SecurityConfig\n.requestMatchers(\"/actuator/**\").permitAll()\n\n# application-prod.yml\n# actuator 노출 설정 없음 → 전체 공개",
+    after: "# application-prod.yml\nmanagement:\n  endpoints:\n    web:\n      exposure:\n        include: health,info  # 최소 공개\n\n# SecurityConfig\n.requestMatchers(\n  \"/actuator/health\",\n  \"/actuator/info\"\n).permitAll()",
+    solution: "application-prod.yml에서 노출 엔드포인트를 health/info만으로 제한하고, SecurityConfig도 동일하게 좁힘. K8s probe는 /actuator/health 대신 /auth/health를 사용하므로 영향 없음.",
+    tags: ["Actuator", "보안", "정보노출", "Spring Security"],
+  },
+  {
+    id: 11,
+    category: "보안",
+    title: "nginx Rate Limiting + 보안 헤더",
+    summary: "로그인 Brute Force 방지, 보안 헤더 적용",
+    icon: <Shield className="w-5 h-5" />,
+    before: "# nginx.conf (변경 전)\n# Rate limiting 없음\n# 보안 헤더 없음\nlocation /api/ {\n    proxy_pass http://portfolio-backend:8080/api/;\n}",
+    after: "limit_req_zone $binary_remote_addr\n  zone=login_limit:10m rate=5r/m;\n\nlocation /api/auth/login {\n    limit_req zone=login_limit burst=3;\n    # 분당 5회 제한\n}\n\nadd_header X-Frame-Options \"SAMEORIGIN\";\nadd_header X-Content-Type-Options \"nosniff\";",
+    solution: "로그인 엔드포인트에 분당 5회 Rate Limit (burst=3), 일반 API는 초당 20회 제한. X-Frame-Options, X-Content-Type-Options, X-XSS-Protection 보안 헤더 추가로 클릭재킹·MIME 스니핑 방지.",
+    tags: ["nginx", "Rate Limiting", "보안 헤더", "Brute Force"],
+  },
+  {
+    id: 12,
+    category: "네트워크",
+    title: "DuckDNS + 공유기 포트포워딩",
+    summary: "무료 서브도메인으로 외부 인터넷 접속 구성",
+    icon: <Globe className="w-5 h-5" />,
+    problem: "kubectl port-forward는 localhost에만 바인딩 → 같은 Wi-Fi 내에서도 다른 기기 접속 불가. 공인 IP는 변동 IP라 DNS 설정 필요.",
+    solution: `구성 단계:\n1. duckdns.org 가입 → k-devops.duckdns.org 서브도메인 생성\n2. scripts/duckdns-update.sh → DuckDNS API로 공인IP 자동 갱신\n3. launchctl LaunchAgent 등록 → 5분마다 IP 업데이트\n4. KT 공유기: 장치설정 → 트래픽관리 → 포트포워딩\n   외부 80 → 172.30.1.94:80 (Caddy)\n   외부 443 → 172.30.1.94:443 (Caddy)\n5. port-forward --address 0.0.0.0 으로 바인딩 변경`,
+    tags: ["DuckDNS", "포트포워딩", "DDNS", "KT"],
+  },
+  {
+    id: 13,
+    category: "네트워크",
+    title: "Caddy 리버스 프록시 + Let's Encrypt",
+    summary: "자동 HTTPS 인증서 발급, NAT Loopback 해결",
+    icon: <Globe className="w-5 h-5" />,
+    problem: "1) HTTP만 지원 시 보안 취약. 2) 공유기가 NAT Loopback 미지원 → Mac에서 자신의 공인 IP 도메인 접속 불가. 3) Chrome HSTS 캐시로 HTTP 도메인 접속 차단.",
+    before: "# 기존: kubectl port-forward만 사용\n# → localhost에서만 접근 가능\n# → HTTPS 없음",
+    after: "# /opt/homebrew/etc/Caddyfile\nhttp://k-devops.duckdns.org {\n    reverse_proxy localhost:8888\n}\n# Caddy가 Let's Encrypt 인증서 자동 발급\n# sudo brew services start caddy",
+    solution: "Caddy를 Mac에서 리버스 프록시로 실행. sudo로 포트 80/443 바인딩. /etc/hosts에 127.0.0.1 k-devops.duckdns.org 추가로 NAT Loopback 우회. Chrome HSTS 캐시는 chrome://net-internals/#hsts에서 도메인 삭제로 해결. Let's Encrypt DuckDNS CAA 조회 지연은 자동 재시도로 해결.",
+    tags: ["Caddy", "Let's Encrypt", "HTTPS", "NAT Loopback", "HSTS"],
+  },
+  {
+    id: 14,
+    category: "Docker",
+    title: "Colima → Docker Desktop 마이그레이션",
+    summary: "Docker Desktop 설치 실패(/usr/local 권한) 해결 과정",
+    icon: <Container className="w-5 h-5" />,
+    problem: "Docker Desktop 미설치 상태에서 Colima 사용 중. brew install --cask docker 실패: /usr/local/bin, /usr/local/cli-plugins 디렉토리 부재 or root 소유.",
+    before: "brew install --cask docker\n# → /usr/local/cli-plugins 없음\n# → sudo mkdir 후 재시도\n# → chown: /usr/local: Operation not permitted (SIP)",
+    after: "# SIP 때문에 /usr/local 자체는 chown 불가\n# 하위 디렉토리만 개별 chown\nsudo mkdir -p /usr/local/cli-plugins\nsudo chown $(whoami) /usr/local/cli-plugins\nbrew install --cask docker  # 성공",
+    solution: "macOS SIP(System Integrity Protection)로 /usr/local 자체 소유권 변경 불가. /usr/local/bin, /usr/local/cli-plugins 등 필요한 하위 디렉토리만 개별 생성·소유권 변경. Docker Desktop 4.81.0 설치 성공 후 Minikube 드라이버를 Docker Desktop으로 교체.",
+    tags: ["Docker Desktop", "SIP", "Colima", "brew cask"],
+  },
+  {
+    id: 15,
+    category: "보안",
+    title: "Prometheus + Grafana 모니터링",
+    summary: "kube-prometheus-stack으로 K8s 클러스터 관측성 구성",
+    icon: <Shield className="w-5 h-5" />,
+    solution: "Helm으로 kube-prometheus-stack 배포. Prometheus가 K8s 메트릭(pod CPU/메모리, 노드 상태) 수집, Grafana 대시보드로 시각화. kubectl port-forward로 Grafana(3000), Prometheus(9091) 로컬 접근. 기본 계정: admin/grafana1234.",
+    tags: ["Prometheus", "Grafana", "Helm", "Monitoring", "kube-prometheus-stack"],
+  },
+];
+
+const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
+  전체: <Layers className="w-4 h-4" />,
+  Docker: <Container className="w-4 h-4" />,
+  Jenkins: <GitBranch className="w-4 h-4" />,
+  Kubernetes: <Server className="w-4 h-4" />,
+  보안: <Shield className="w-4 h-4" />,
+  네트워크: <Network className="w-4 h-4" />,
+};
+
+const CATEGORY_COLORS: Record<Category, string> = {
+  전체: "text-slate-300 bg-slate-500/20",
+  Docker: "text-blue-300 bg-blue-500/15",
+  Jenkins: "text-orange-300 bg-orange-500/15",
+  Kubernetes: "text-purple-300 bg-purple-500/15",
+  보안: "text-green-300 bg-green-500/15",
+  네트워크: "text-cyan-300 bg-cyan-500/15",
+};
+
+function CodeBlock({ label, code, tone }: { label: string; code: string; tone: "before" | "after" }) {
+  return (
+    <div>
+      <div className={`text-xs font-mono mb-1 ${tone === "before" ? "text-red-400" : "text-green-400"}`}>{label}</div>
+      <pre className={`text-xs bg-black/50 border ${tone === "before" ? "border-red-500/20" : "border-green-500/20"} rounded-lg p-3 overflow-x-auto whitespace-pre-wrap`}>
+        <code className="text-slate-300">{code}</code>
+      </pre>
+    </div>
+  );
+}
+
+export default function DevOpsSection() {
+  const { ref, inView } = useInView();
+  const [selected, setSelected] = useState<DevOpsItem | null>(null);
+  const [activeCategory, setActiveCategory] = useState<Category>("전체");
+
+  const categories: Category[] = ["전체", "Docker", "Jenkins", "Kubernetes", "보안", "네트워크"];
+  const filtered = activeCategory === "전체" ? ITEMS : ITEMS.filter(i => i.category === activeCategory);
+
+  return (
+    <section id="devops" className="py-24 relative" style={{ background: "#070d1e" }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div
+          ref={ref}
+          className={`transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+        >
+          {/* 헤더 */}
+          <div className="text-center mb-12">
+            <p className="section-label mb-3">Infrastructure</p>
+            <h2 className="text-4xl font-extrabold text-white" style={{ fontFamily: "Sora, sans-serif" }}>
+              DevOps <span className="gradient-text">구축 기록</span>
+            </h2>
+            <p className="text-slate-500 mt-3 text-sm">
+              Docker · Jenkins · Kubernetes · 네트워크 — 전체 파이프라인 구성 과정과 해결한 문제들
+            </p>
+          </div>
+
+          {/* 아키텍처 플로우 */}
+          <div className="flex items-center justify-center gap-2 mb-10 flex-wrap text-xs text-slate-400">
+            {["Git Push", "Jenkins CI", "Docker Build", "minikube load", "K8s Deploy", "Caddy HTTPS", "k-devops.duckdns.org"].map((step, i, arr) => (
+              <span key={step} className="flex items-center gap-2">
+                <span className="px-3 py-1.5 rounded-full border border-slate-600/50 bg-slate-800/50 text-slate-300 font-mono">
+                  {step}
+                </span>
+                {i < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-600" />}
+              </span>
+            ))}
+          </div>
+
+          {/* 카테고리 필터 */}
+          <div className="flex flex-wrap gap-2 justify-center mb-8">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                  activeCategory === cat
+                    ? "border-blue-500/50 bg-blue-500/20 text-blue-300"
+                    : "border-slate-700/50 bg-slate-800/30 text-slate-400 hover:border-slate-600 hover:text-slate-300"
+                }`}
+              >
+                {CATEGORY_ICONS[cat]}
+                {cat}
+                <span className="text-xs opacity-60">
+                  {cat === "전체" ? ITEMS.length : ITEMS.filter(i => i.category === cat).length}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* 카드 그리드 */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((item, idx) => (
+              <button
+                key={item.id}
+                onClick={() => setSelected(item)}
+                className="glass-card p-5 rounded-xl text-left hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all group"
+                style={{ animationDelay: `${idx * 50}ms` }}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <span className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded font-mono ${CATEGORY_COLORS[item.category]}`}>
+                    {CATEGORY_ICONS[item.category]}
+                    {item.category}
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+                </div>
+
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="text-blue-400 mt-0.5 shrink-0">{item.icon}</span>
+                  <h3 className="text-sm font-bold text-white leading-snug">{item.title}</h3>
+                </div>
+
+                <p className="text-xs text-slate-500 leading-relaxed">{item.summary}</p>
+
+                {item.problem && (
+                  <div className="mt-3 flex items-center gap-1 text-xs text-amber-500/70">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{item.problem.split('.')[0]}</span>
+                  </div>
+                )}
+
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {item.tags.slice(0, 3).map(tag => (
+                    <span key={tag} className="text-xs bg-slate-800/60 text-slate-500 px-1.5 py-0.5 rounded font-mono">
+                      {tag}
+                    </span>
+                  ))}
+                  {item.tags.length > 3 && (
+                    <span className="text-xs text-slate-600">+{item.tags.length - 3}</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <p className="text-center mt-8 text-xs text-slate-600">
+            카드를 클릭하면 상세 내용을 확인할 수 있습니다
+          </p>
+        </div>
+      </div>
+
+      {/* 상세 모달 */}
+      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-[#0a1628] border-slate-700/50">
+          {selected && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded font-mono ${CATEGORY_COLORS[selected.category]}`}>
+                    {CATEGORY_ICONS[selected.category]}
+                    {selected.category}
+                  </span>
+                </div>
+                <DialogTitle className="text-white text-xl leading-snug">
+                  {selected.title}
+                </DialogTitle>
+                <p className="text-slate-400 text-sm">{selected.summary}</p>
+              </DialogHeader>
+
+              <div className="space-y-5 mt-2">
+                {selected.problem && (
+                  <div>
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-amber-400 mb-2">
+                      <AlertTriangle className="w-4 h-4" /> 문제 상황
+                    </div>
+                    <p className="text-sm text-slate-400 leading-relaxed">{selected.problem}</p>
+                  </div>
+                )}
+
+                {(selected.before || selected.after) && (
+                  <div className="grid gap-3">
+                    {selected.before && <CodeBlock label="// Before (문제)" code={selected.before} tone="before" />}
+                    {selected.after && <CodeBlock label="// After (해결)" code={selected.after} tone="after" />}
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center gap-1.5 text-sm font-semibold text-green-400 mb-2">
+                    <CheckCircle2 className="w-4 h-4" /> 원인 & 해결
+                  </div>
+                  <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line">{selected.solution}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-800">
+                  {selected.tags.map(tag => (
+                    <span key={tag} className="text-xs bg-slate-800/80 text-slate-400 px-2 py-1 rounded font-mono border border-slate-700/50">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </section>
+  );
+}

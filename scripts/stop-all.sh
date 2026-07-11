@@ -29,11 +29,11 @@ if [[ "$ans" =~ ^[Yy]$ ]]; then
   echo "  ✓ Minikube 종료"
 fi
 
-# Colima 중지 (선택)
-read -r -p "  Colima(Docker)도 종료할까요? (y/N) " ans
+# Docker Desktop 종료 (선택)
+read -r -p "  Docker Desktop도 종료할까요? (y/N) " ans
 if [[ "$ans" =~ ^[Yy]$ ]]; then
-  colima stop
-  echo "  ✓ Colima 종료"
+  osascript -e 'quit app "Docker"'
+  echo "  ✓ Docker Desktop 종료"
 fi
 
 echo ""

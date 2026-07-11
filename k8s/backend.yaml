@@ -83,6 +83,9 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 15
             failureThreshold: 3
+          volumeMounts:
+            - name: uploads-storage
+              mountPath: /app/uploads
           resources:
             requests:
               memory: "256Mi"
@@ -90,6 +93,19 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+      # 업로드 파일 영구 저장 (pod 재시작해도 유지)
+      volumes:
+        - name: uploads-storage
+          persistentVolumeClaim:
+            claimName: uploads-pvc
+      # ReadWriteOnce PVC는 1개 노드에서만 마운트 가능 → 단일 노드 스케줄링
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: portfolio-backend
+              topologyKey: kubernetes.io/hostname
 
 ---
 apiVersion: v1

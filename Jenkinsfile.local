@@ -5,9 +5,14 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_TAG      = "${env.BUILD_NUMBER}"
-        K8S_NAMESPACE  = "portfolio"
-        PROJECT_ROOT   = "/Users/k/IdeaProjects/K-portfolio"
+        IMAGE_TAG     = "${env.BUILD_NUMBER}"
+        K8S_NAMESPACE = "portfolio"
+        PROJECT_ROOT  = "${env.WORKSPACE}"
+    }
+
+    triggers {
+        // GitHub에 push되면 5분 이내 자동 감지·빌드
+        pollSCM('H/5 * * * *')
     }
 
     options {
@@ -19,7 +24,9 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo "=== Build #${env.BUILD_NUMBER} 시작 ==="
+                // GitHub에서 최신 코드 체크아웃
+                checkout scm
+                echo "=== Build #${env.BUILD_NUMBER} — branch: ${env.GIT_BRANCH} ==="
                 sh 'java -version 2>&1 | head -1'
                 sh 'mvn -version | head -1'
                 sh 'docker version --format "Docker {{.Server.Version}}" 2>/dev/null || echo "Docker 접근 확인 필요"'
@@ -135,10 +142,16 @@ pipeline {
                 sh """
                     echo "=== 배포 완료 - Build #${IMAGE_TAG} ==="
                     kubectl get pods -n ${K8S_NAMESPACE}
-                    echo ""
-                    echo "접근 방법:"
-                    echo "  kubectl port-forward -n portfolio svc/portfolio-frontend 8888:80"
-                    echo "  브라우저: http://localhost:8888"
+                """
+                // 기존 포트포워드 종료 후 재시작
+                sh """
+                    kill \$(lsof -ti:8888,8889,3000,9091 2>/dev/null) 2>/dev/null || true
+                    sleep 1
+                    kubectl port-forward --address 0.0.0.0 -n ${K8S_NAMESPACE} svc/portfolio-frontend 8888:80   > /dev/null 2>&1 &
+                    kubectl port-forward --address 0.0.0.0 -n ${K8S_NAMESPACE} svc/portfolio-backend  8889:8080 > /dev/null 2>&1 &
+                    echo "포트포워드 시작 완료"
+                    echo "  http://localhost:8888"
+                    echo "  http://k-devops.duckdns.org"
                 """
             }
         }

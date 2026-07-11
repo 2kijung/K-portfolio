@@ -20,14 +20,19 @@ echo "  K-Portfolio 인프라 시작"
 echo "=================================="
 
 # ─────────────────────────────────────
-echo_step "1. Colima (Docker 런타임)"
+echo_step "1. Docker Desktop"
 # ─────────────────────────────────────
-if colima status 2>/dev/null | grep -q "colima is running"; then
-  check_ok "Colima 이미 실행 중"
+if docker info &>/dev/null; then
+  check_ok "Docker Desktop 이미 실행 중"
 else
-  echo "  Colima 시작 중..."
-  colima start --cpu 4 --memory 6 2>&1 | grep -E "done|error|warn" | head -5
-  check_ok "Colima 시작 완료"
+  echo "  Docker Desktop 시작 중..."
+  open -a Docker
+  for i in $(seq 1 30); do
+    sleep 3
+    docker info &>/dev/null && break
+    echo "  대기 중... ($i/30)"
+  done
+  docker info &>/dev/null && check_ok "Docker Desktop 시작 완료" || { echo "  ✗ Docker Desktop 시작 실패. 수동으로 실행하세요."; exit 1; }
 fi
 
 # ─────────────────────────────────────
@@ -38,7 +43,7 @@ if [ "$MINIKUBE_STATUS" = "Running" ]; then
   check_ok "Minikube 이미 실행 중 (IP: $(minikube ip 2>/dev/null))"
 else
   echo "  Minikube 시작 중..."
-  minikube start --driver=docker 2>&1 | grep -E "Done|Ready|Error" | tail -3
+  minikube start --driver=docker --cpus=4 --memory=5500 2>&1 | grep -E "Done|Ready|Error|끝났습니다" | tail -3
   check_ok "Minikube 시작 완료 (IP: $(minikube ip 2>/dev/null))"
 fi
 
