@@ -24,6 +24,9 @@ public class Skill {
     @Column
     private String color = "#3b82f6"; // 바 색상 (선택)
 
+    @Column(columnDefinition = "TEXT")
+    private String description;        // 툴팁 설명 (선택)
+
     @Column(name = "display_order")
     private Integer displayOrder = 0;
 
@@ -46,4 +49,7 @@ public class Skill {
 
     public Integer getDisplayOrder() { return displayOrder; }
     public void setDisplayOrder(Integer displayOrder) { this.displayOrder = displayOrder; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 }

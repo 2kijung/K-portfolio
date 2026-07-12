@@ -89,6 +89,7 @@ export interface SkillData {
   level?: number;
   color?: string;
   displayOrder?: number;
+  description?: string;
 }
 
 // Contact API

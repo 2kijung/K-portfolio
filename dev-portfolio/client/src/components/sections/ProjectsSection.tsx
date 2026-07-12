@@ -67,12 +67,12 @@ export default function ProjectsSection() {
                   style={{ transitionDelay: `${idx * 80}ms` }}
                 >
                   {/* header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-blue-500/10 border border-blue-500/25 text-blue-400">
+                  <div className="flex items-start justify-between mb-3 gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center bg-blue-500/10 border border-blue-500/25 text-blue-400">
                         <FolderGit2 className="w-5 h-5" />
                       </div>
-                      <h3 className="text-base font-bold text-white group-hover:text-blue-300 transition-colors">
+                      <h3 className="text-sm font-bold text-white group-hover:text-blue-300 transition-colors leading-snug">
                         {project.title}
                       </h3>
                     </div>
