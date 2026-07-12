@@ -85,7 +85,7 @@ export default function HeroSection() {
 
         {/* Main heading */}
         <h1
-          className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white mb-4 animate-fadeInUp"
+          className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-white mb-4 animate-fadeInUp"
           style={{ fontFamily: "Sora, sans-serif", lineHeight: 1.1 }}
         >
           {profile?.name || "포트폴리오"}
@@ -122,13 +122,14 @@ export default function HeroSection() {
           >
             View Projects
           </button>
-          <button
-            onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })}
+          <a
+            href="/이기정_자기소개서.pdf"
+            download="이기정_자기소개서.pdf"
             className="px-8 py-3.5 rounded-xl glass-card text-slate-200 font-semibold text-sm transition-all duration-200 hover:-translate-y-0.5 flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
             Download CV
-          </button>
+          </a>
         </div>
 
         {/* Social links (프로필 데이터가 있는 것만 표시) */}
@@ -151,7 +152,12 @@ export default function HeroSection() {
               className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
               title="Tistory"
             >
-              <span className="text-xs font-bold">T</span>
+              {/* Tistory 로고 SVG */}
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+                <circle cx="12" cy="4.8" r="2.4"/>
+                <circle cx="12" cy="12" r="2.4"/>
+                <circle cx="12" cy="19.2" r="2.4"/>
+              </svg>
             </a>
           )}
           {profile?.blogUrl && (
@@ -162,7 +168,10 @@ export default function HeroSection() {
               className="w-10 h-10 rounded-lg glass-card flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5"
               title="Velog"
             >
-              <BookOpen className="w-5 h-5" />
+              {/* Velog 로고 SVG */}
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+                <path d="M3 3h18v18H3V3zm3.75 5.25L10.5 16.5l3.75-8.25H18L12 19.5 6 8.25h.75z"/>
+              </svg>
             </a>
           )}
           {profile?.email && (
