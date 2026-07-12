@@ -9,7 +9,7 @@ import { useInView } from "@/hooks/useInView";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Container, GitBranch, Server, Shield, Globe, AlertTriangle,
-  CheckCircle2, ChevronRight, Layers, Network, Cpu, ChevronDown, ChevronUp
+  CheckCircle2, ChevronRight, Layers, Network, Cpu, ChevronDown, ChevronUp, Github
 } from "lucide-react";
 
 type Category = "전체" | "Docker" | "Jenkins" | "Kubernetes" | "보안" | "네트워크";
@@ -212,6 +212,42 @@ const ITEMS: DevOpsItem[] = [
     tags: ["nginx", "정규식", "location 우선순위", "404"],
   },
   {
+    id: 19,
+    category: "Jenkins",
+    title: "openclaw-msa Maven 멀티모듈 빌드 순서 제약",
+    summary: "openclaw-common을 먼저 install 하지 않으면 3개 서비스가 전부 컴파일 실패",
+    icon: <GitBranch className="w-5 h-5" />,
+    problem: "mvn compile -pl budget-service,blog-service,notification-service 병렬 실행 시 'Could not resolve com.openclaw:openclaw-common:1.0.0-SNAPSHOT' 에러. 로컬 Maven 저장소에 openclaw-common이 없기 때문.",
+    before: "// 잘못된 순서 — 병렬로 전부 빌드 시도\nmvn compile -pl budget-service,blog-service,notification-service\n// → openclaw-common 의존성 해결 실패\n// → 3개 서비스 모두 컴파일 에러",
+    after: "// Jenkinsfile 파이프라인 순서\n// Stage 1: BOM 설치 (직렬 — 순서 강제)\nmvn install -N -q                       // 부모 POM\nmvn install -pl openclaw-common -q      // 공통 모듈\n\n// Stage 2: 서비스 빌드 (병렬 — common 설치 후)\nparallel budget-service, blog-service, notification-service",
+    solution: "Maven 멀티모듈에서 공통 모듈(openclaw-common)은 로컬 저장소(~/.m2)에 install 되어야 다른 모듈이 의존성으로 참조 가능. Jenkinsfile에서 Stage를 분리해 BOM→common install을 먼저 직렬로 실행하고, 이후 3개 서비스를 parallel로 빌드. 순서 의존성이 있는 멀티모듈은 병렬화 전 선행 빌드 단계 분리가 필수.",
+    tags: ["Maven", "Multi-module", "Jenkins", "parallel", "install"],
+  },
+  {
+    id: 20,
+    category: "Kubernetes",
+    title: "MSA 단일 로그인 — JWT K8s Secret 공유",
+    summary: "3개 서비스가 각자 로그인하면 비밀번호를 3번 입력해야 하는 문제",
+    icon: <Server className="w-5 h-5" />,
+    problem: "MSA에서 서비스마다 독립적인 인증을 구현하면 사용자는 budget/blog/notify 서비스마다 개별 로그인 필요. 또한 서비스 간 세션 공유가 불가능(MSA 특성상 서버 간 HttpSession 미공유).",
+    before: "// 각 서비스가 독립적인 세션 인증\n// → budget-service 로그인 세션이 blog-service에서 유효하지 않음\n// → 서비스 전환마다 재로그인 필요\n// → 로드밸런서 세션 고정(sticky session) 필요 = 단점",
+    after: "// budget-service /auth/login → JWT 발급\n// Nginx auth_request → budget-service /auth/verify\n// 검증 성공 시 X-User-Id 헤더 추가 후 하위 서비스로 전달\n\n// k8s/secret.yaml\nJWT_SECRET: <base64>  // 3개 서비스가 동일 Secret 참조",
+    solution: "JWT를 K8s Secret에 저장해 3개 서비스가 동일한 서명 키를 공유. budget-service /auth/login에서만 토큰 발급. 이후 Nginx auth_request 모듈이 모든 요청을 /auth/verify에서 검증 → 유효하면 X-User-Id 헤더를 추가해 하위 서비스로 전달. 상태 비저장(Stateless) 방식이므로 서비스 확장 시 세션 공유 문제 없음.",
+    tags: ["JWT", "K8s Secret", "Nginx auth_request", "Stateless", "MSA"],
+  },
+  {
+    id: 21,
+    category: "Jenkins",
+    title: "MSA 서비스 간 Java import 컴파일 에러 → REST 분리 강제",
+    summary: "budget-service에서 notification 클래스 직접 import → package not found",
+    icon: <GitBranch className="w-5 h-5" />,
+    problem: "MailParserJobConfig에서 TelegramNotificationService를 직접 import 하려다 'package com.openclaw.notification does not exist' 컴파일 에러 발생. MSA에서 서비스 간 Java 클래스 직접 참조는 Maven 모듈 경계를 위반.",
+    before: "// budget-service/MailParserJobConfig.java\nimport com.openclaw.notification.service.TelegramNotificationService;\n// → notification-service가 별도 Maven 모듈\n// → budget-service pom.xml에 의존성 없음\n// → package com.openclaw.notification does not exist",
+    after: "// budget-service/NotificationClient.java\n// notification-service를 직접 import 하지 않고\n// REST POST로만 통신\nrestTemplate.postForObject(\n    notifyUrl + \"/notify/send\",\n    payload, Void.class\n);",
+    solution: "MSA 서비스 간 통신은 Java 클래스 참조가 아닌 REST API 호출만 허용. Maven 멀티모듈 구조가 이를 빌드 시점에 물리적으로 강제 — 다른 서비스 패키지를 import하면 컴파일 에러로 즉시 차단. budget-service에 NotificationClient(RestTemplate 래퍼)를 작성해 느슨한 결합 구현. 아키텍처 규칙이 코드 컨벤션이 아닌 빌드 시스템으로 보장됨.",
+    tags: ["MSA", "Maven", "REST", "느슨한결합", "컴파일에러"],
+  },
+  {
     id: 17,
     category: "보안",
     title: "Prometheus + Grafana 모니터링",
@@ -291,18 +327,40 @@ export default function DevOpsSection() {
             <p className="text-slate-500 mt-3 text-sm">
               Docker · Jenkins · Kubernetes · 네트워크 — 전체 파이프라인 구성 과정과 해결한 문제들
             </p>
+            <div className="flex items-center justify-center gap-3 mt-5">
+              <a
+                href="https://github.com/2kijung/K-portfolio/blob/main/Jenkinsfile"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-700/50 bg-slate-800/40 text-slate-400 hover:border-orange-500/40 hover:text-orange-300 text-xs font-mono transition-all"
+              >
+                <Github className="w-3.5 h-3.5" />
+                Jenkinsfile (K-portfolio)
+              </a>
+              <a
+                href="https://github.com/2kijung/openclaw-msa/blob/main/Jenkinsfile"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-700/50 bg-slate-800/40 text-slate-400 hover:border-orange-500/40 hover:text-orange-300 text-xs font-mono transition-all"
+              >
+                <Github className="w-3.5 h-3.5" />
+                Jenkinsfile (openclaw-msa)
+              </a>
+            </div>
           </div>
 
-          {/* 아키텍처 플로우 */}
-          <div className="flex items-center justify-center gap-2 mb-10 flex-wrap text-xs text-slate-400">
-            {["Git Push", "Jenkins CI", "Docker Build", "minikube load", "K8s Deploy", "Caddy HTTPS", "k-devops.duckdns.org"].map((step, i, arr) => (
-              <span key={step} className="flex items-center gap-2">
-                <span className="px-3 py-1.5 rounded-full border border-slate-600/50 bg-slate-800/50 text-slate-300 font-mono">
-                  {step}
+          {/* 아키텍처 플로우 — 모바일에서 가로 스크롤 */}
+          <div className="mb-10 overflow-x-auto pb-2">
+            <div className="flex items-center gap-2 text-xs text-slate-400 min-w-max sm:min-w-0 sm:flex-wrap sm:justify-center">
+              {["Git Push", "Jenkins CI", "Docker Build", "minikube load", "K8s Deploy", "Caddy HTTPS", "k-devops.duckdns.org"].map((step, i, arr) => (
+                <span key={step} className="flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-full border border-slate-600/50 bg-slate-800/50 text-slate-300 font-mono whitespace-nowrap">
+                    {step}
+                  </span>
+                  {i < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
                 </span>
-                {i < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-600" />}
-              </span>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* 카테고리 필터 */}
@@ -395,7 +453,7 @@ export default function DevOpsSection() {
 
       {/* 상세 모달 */}
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-[#0a1628] border-slate-700/50">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[85vh] overflow-y-auto bg-[#0a1628] border-slate-700/50 p-4 sm:p-6">
           {selected && (
             <>
               <DialogHeader>

@@ -94,25 +94,93 @@ public class DataInitializer implements CommandLineRunner {
         if (skillRepository.count() == 0) {
             createSampleSkills();
         }
+
+        // Polymer 설명 마이그레이션 (description 컬럼 추가 후 첫 실행 시 1회 적용)
+        skillRepository.findAll().stream()
+            .filter(s -> s.getName().startsWith("Polymer") && (s.getDescription() == null || s.getDescription().isEmpty()))
+            .findFirst()
+            .ifPresent(s -> {
+                s.setDescription("Google이 YouTube 재설계(2017)에 적용한 JS 웹 컴포넌트 프레임워크. React 이전 Google의 표준 UI 라이브러리.");
+                skillRepository.save(s);
+            });
+
+        // DevNote 11 openclaw-msa 반영 마이그레이션
+        devNoteRepository.findAll().stream()
+            .filter(n -> n.getDisplayOrder() == 11 && n.getTitle().startsWith("왜 MSA 대신"))
+            .findFirst()
+            .ifPresent(n -> {
+                n.setTitle("포트폴리오는 모놀리식, openclaw-msa로 MSA 직접 구현 — 두 아키텍처의 선택 근거");
+                n.setSituation(
+                    "이 포트폴리오 사이트는 Spring Boot 모놀리식으로 설계했고, openclaw-msa(가계부·블로그 자동화 시스템)는 Spring Framework 기반 Maven 멀티모듈 MSA로 별도 구현했다. " +
+                    "두 프로젝트에서 같은 개발자가 다른 아키텍처 판단을 내린 이유가 있다.");
+                n.setCodeBefore(
+                    "// 포트폴리오: 도메인을 패키지로 분리했지만 단일 배포 단위\n" +
+                    "// openclaw-msa 초기 구상: 서비스 간 Java 클래스 직접 import\n" +
+                    "// → budget-service에서 TelegramNotificationService 직접 참조 시도\n" +
+                    "// → package com.openclaw.notification does not exist (컴파일 에러)");
+                n.setCodeAfter(
+                    "// openclaw-msa 최종 구조: REST 호출만 허용\n" +
+                    "// budget-service/NotificationClient.java → POST notification-service:8083/notify/send\n" +
+                    "// 컴파일러가 MSA 경계를 강제 — Java import 불가능 구조");
+                n.setSolution(
+                    "【포트폴리오를 모놀리식으로 선택한 이유】\n" +
+                    "개인 포트폴리오 규모에서 MSA를 처음부터 적용하면 서비스 분리·통신·배포 복잡도가 학습 목적을 흐린다. " +
+                    "대신 각 도메인(인증/프로필/경력/프로젝트)을 Controller-Service-Repository-Entity 4계층으로 명확히 분리해 두어, " +
+                    "추후 특정 도메인만 서비스로 뽑아낼 수 있게 설계했다.\n\n" +
+                    "【openclaw-msa를 MSA로 선택한 이유】\n" +
+                    "가계부(Spring Batch 메일 파싱)·블로그 자동포스팅·Telegram 알림이 서로 독립적인 배포 주기를 가진다. " +
+                    "3개 서비스가 공통 로그인을 공유해야 하는 문제 → JWT를 K8s Secret으로 공유, Nginx auth_request로 단일 인증 관문 구성.\n\n" +
+                    "【핵심 교훈】\n" +
+                    "Spring Framework(Boot 아님) 순수 설정으로 DispatcherServlet·DataSource·EntityManagerFactory를 직접 정의하면서 " +
+                    "프레임워크 내부 동작을 이해했다. MSA 경계는 코드 컨벤션이 아닌 Maven 멀티모듈 구조로 강제했고, " +
+                    "서비스 간 Java import 시도는 컴파일 에러로 즉시 차단됐다 — 아키텍처가 빌드 시스템에 의해 물리적으로 보장됨.");
+                devNoteRepository.save(n);
+            });
+
+        // openclaw-msa 프로젝트 마이그레이션 (기존 DB에 없는 경우 1회 삽입)
+        boolean openclawExists = projectRepository.findAll().stream()
+            .anyMatch(p -> p.getTitle().startsWith("openclaw-msa"));
+        if (!openclawExists) {
+            Project openclaw = new Project();
+            openclaw.setTitle("openclaw-msa — 가계부·블로그 자동화 MSA 시스템");
+            openclaw.setDescription(
+                "Python 스크립트로 운영하던 가계부 자동화·블로그 자동포스팅을 Java 엔터프라이즈 아키텍처로 재설계.\n" +
+                "Spring Boot 없이 Spring Framework 5.3 순수 설정(DispatcherServlet, DataSource, EntityManagerFactory 직접 정의)으로 구현.\n" +
+                "Maven 멀티모듈(budget-service / blog-service / notification-service + openclaw-common BOM) 구조.\n" +
+                "단일 로그인→JWT 발급→Nginx auth_request로 전 서비스 인증 통합.\n" +
+                "Spring Batch로 메일 파싱 후 가계부 자동 집계, Telegram 알림 발송.");
+            openclaw.setTechnologies(
+                "Spring Framework 5.3, Maven Multi-module, PostgreSQL, JWT, Nginx API Gateway, Spring Batch, Thymeleaf, Kubernetes, Docker");
+            openclaw.setStatus(Project.Status.DEVELOPMENT);
+            openclaw.setGithubUrl("https://github.com/2kijung/openclaw-msa");
+            openclaw.setFeatured(true);
+            openclaw.setDisplayOrder((int)(projectRepository.count() + 1));
+            openclaw.setCreatedAt(LocalDateTime.now());
+            projectRepository.save(openclaw);
+        }
     }
 
     private void createSampleSkills() {
         // {category, name, level, color}  (level은 칩 UI에선 표시 안 함)
         Object[][] data = {
             {"Backend", "Java", 85, "#f97316"},
-            {"Backend", "Spring", 85, "#6db33f"},
+            {"Backend", "Spring Framework", 85, "#6db33f"},
             {"Backend", "Spring Boot", 82, "#6db33f"},
             {"Backend", "JPA", 80, "#59666c"},
             {"Backend", "MyBatis", 82, "#8a6d3b"},
             {"Database", "Oracle", 82, "#f80000"},
             {"Database", "MSSQL", 78, "#a91d22"},
-            {"Database", "H2", 75, "#274b6d"},
+            {"Database", "PostgreSQL", 75, "#336791"},
+            {"Database", "H2", 72, "#274b6d"},
             {"Frontend", "React", 72, "#61dafb"},
+            {"Frontend", "TypeScript", 70, "#3178c6"},
             {"Frontend", "JavaScript", 75, "#f7df1e"},
+            {"Frontend", "Polymer (Web Components)", 72, "#ff6d00"},
             {"Frontend", "HTML/CSS", 78, "#e34f26"},
-            {"DevOps", "Git", 82, "#f05032"},
-            {"DevOps", "Jenkins", 75, "#d33833"},
+            {"DevOps", "Kubernetes", 75, "#326ce5"},
             {"DevOps", "Docker", 75, "#2496ed"},
+            {"DevOps", "Jenkins", 75, "#d33833"},
+            {"DevOps", "Git", 82, "#f05032"},
             {"DevOps", "Maven", 78, "#c71a36"},
             {"DevOps", "Jira", 75, "#0052cc"},
         };
@@ -288,11 +356,27 @@ public class DataInitializer implements CommandLineRunner {
 
         // 4) 아키텍처 설계 (모놀리식 선택)
         devNoteRepository.save(note(11,
-            "왜 MSA 대신 모놀리식으로 설계했나", "설계",
-            "MSA(마이크로서비스)를 학습하고 싶었지만, 개인 포트폴리오 규모에 처음부터 MSA를 적용하면 운영 복잡도(서비스 분리, 통신, 배포)가 학습 목적을 흐릴 수 있었다.",
-            null,
-            null,
-            "결정: 우선 하나의 Spring Boot 애플리케이션(모듈형 모놀리식)으로 인증/프로필/경력/자격증/프로젝트 도메인을 구성. 각 도메인을 Controller-Service-Repository-Entity로 명확히 분리해 두어, 추후 부하가 큰 도메인부터 서비스로 분리(MSA 전환)할 수 있게 설계. 교훈: '잘 나눠진 모놀리식'이 MSA 전환의 출발점이다."));
+            "포트폴리오는 모놀리식, openclaw-msa로 MSA 직접 구현 — 두 아키텍처의 선택 근거", "설계",
+            "이 포트폴리오 사이트는 Spring Boot 모놀리식으로 설계했고, openclaw-msa(가계부·블로그 자동화 시스템)는 Spring Framework 기반 Maven 멀티모듈 MSA로 별도 구현했다. " +
+            "두 프로젝트에서 같은 개발자가 다른 아키텍처 판단을 내린 이유가 있다.",
+            "// 포트폴리오: 도메인을 패키지로 분리했지만 단일 배포 단위\n" +
+            "// openclaw-msa 초기 구상: 서비스 간 Java 클래스 직접 import\n" +
+            "// → budget-service에서 TelegramNotificationService 직접 참조 시도\n" +
+            "// → package com.openclaw.notification does not exist (컴파일 에러)",
+            "// openclaw-msa 최종 구조: REST 호출만 허용\n" +
+            "// budget-service/NotificationClient.java → POST notification-service:8083/notify/send\n" +
+            "// 컴파일러가 MSA 경계를 강제 — Java import 불가능 구조",
+            "【포트폴리오를 모놀리식으로 선택한 이유】\n" +
+            "개인 포트폴리오 규모에서 MSA를 처음부터 적용하면 서비스 분리·통신·배포 복잡도가 학습 목적을 흐린다. " +
+            "대신 각 도메인(인증/프로필/경력/프로젝트)을 Controller-Service-Repository-Entity 4계층으로 명확히 분리해 두어, " +
+            "추후 특정 도메인만 서비스로 뽑아낼 수 있게 설계했다.\n\n" +
+            "【openclaw-msa를 MSA로 선택한 이유】\n" +
+            "가계부(Spring Batch 메일 파싱)·블로그 자동포스팅·Telegram 알림이 서로 독립적인 배포 주기를 가진다. " +
+            "3개 서비스가 공통 로그인을 공유해야 하는 문제 → JWT를 K8s Secret으로 공유, Nginx auth_request로 단일 인증 관문 구성.\n\n" +
+            "【핵심 교훈】\n" +
+            "Spring Framework(Boot 아님) 순수 설정으로 DispatcherServlet·DataSource·EntityManagerFactory를 직접 정의하면서 " +
+            "프레임워크 내부 동작을 이해했다. MSA 경계는 코드 컨벤션이 아닌 Maven 멀티모듈 구조로 강제했고, " +
+            "서비스 간 Java import 시도는 컴파일 에러로 즉시 차단됐다 — 아키텍처가 빌드 시스템에 의해 물리적으로 보장됨."));
     }
 
     private void createSampleCareers() {
@@ -370,6 +454,14 @@ public class DataInitializer implements CommandLineRunner {
             {"엠로 본사 솔루션 — 핵심 기능 개발",
              "구매(SRM) 솔루션 핵심 기능 개발. Maven·Jira 기반 협업 및 다국어 시스템 대응.",
              "Java, Spring Framework, MyBatis, Maven, Jira", "PRODUCTION"},
+            {"openclaw-msa — 가계부·블로그 자동화 MSA 시스템",
+             "Python 스크립트로 운영하던 가계부 자동화·블로그 자동포스팅을 Java 엔터프라이즈 아키텍처로 재설계.\n" +
+             "Spring Boot 없이 Spring Framework 5.3 순수 설정(DispatcherServlet, DataSource, EntityManagerFactory 직접 정의)으로 구현.\n" +
+             "Maven 멀티모듈(budget-service / blog-service / notification-service + openclaw-common BOM) 구조.\n" +
+             "단일 로그인→JWT 발급→Nginx auth_request로 전 서비스 인증 통합.\n" +
+             "Spring Batch로 메일 파싱 후 가계부 자동 집계, Telegram 알림 발송.",
+             "Spring Framework 5.3, Maven Multi-module, PostgreSQL, JWT, Nginx API Gateway, Spring Batch, Thymeleaf, Kubernetes, Docker",
+             "DEVELOPMENT"},
         };
 
         for (String[] data : projectsData) {
