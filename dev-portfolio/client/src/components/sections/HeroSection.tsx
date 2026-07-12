@@ -123,7 +123,7 @@ export default function HeroSection() {
             View Projects
           </button>
           <a
-            href="/이기정_자기소개서.pdf"
+            href="/resume.pdf"
             download="이기정_자기소개서.pdf"
             className="px-8 py-3.5 rounded-xl glass-card text-slate-200 font-semibold text-sm transition-all duration-200 hover:-translate-y-0.5 flex items-center gap-2"
           >
